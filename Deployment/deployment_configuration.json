@@ -1,0 +1,4 @@
+{
+    "ElasticSearchHost": "localhost",
+    "ElasticSearchProtocol": "http"
+}
