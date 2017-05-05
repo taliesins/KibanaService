@@ -1,60 +1,31 @@
 'use strict';
 
-var _ = require('lodash');
-var fromNode = require('bluebird').fromNode;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 
-module.exports = function (kbnServer, server, config) {
-  return fromNode(function (cb) {
-    var events = config.get('logging.events');
+exports.default = function (kbnServer, server, config) {
+  // prevent relying on kbnServer so this can be used with other hapi servers
+  kbnServer = null;
 
-    if (config.get('logging.silent')) {
-      _.defaults(events, {});
-    } else if (config.get('logging.quiet')) {
-      _.defaults(events, {
-        log: ['listening', 'error', 'fatal'],
-        error: '*'
-      });
-    } else if (config.get('logging.verbose')) {
-      _.defaults(events, {
-        log: '*',
-        ops: '*',
-        request: '*',
-        response: '*',
-        error: '*'
-      });
-    } else {
-      _.defaults(events, {
-        log: ['info', 'warning', 'error', 'fatal'],
-        response: config.get('logging.json') ? '*' : '!',
-        error: '*'
-      });
-    }
-
+  return (0, _bluebird.fromNode)(function (cb) {
     server.register({
-      register: require('good'),
-      options: {
-        opsInterval: 5000,
-        requestHeaders: true,
-        requestPayload: true,
-        reporters: [{
-          reporter: require('./LogReporter'),
-          config: {
-            json: config.get('logging.json'),
-            dest: config.get('logging.dest'),
-            // I'm adding the default here because if you add another filter
-            // using the commandline it will remove authorization. I want users
-            // to have to explicitly set --logging.filter.authorization=none to
-            // have it show up int he logs.
-            filter: _.defaults(config.get('logging.filter'), {
-              authorization: 'remove'
-            })
-          },
-          events: _.transform(events, function (filtered, val, key) {
-            // provide a string compatible way to remove events
-            if (val !== '!') filtered[key] = val;
-          }, {})
-        }]
-      }
+      register: _evenBetter2.default,
+      options: (0, _configuration2.default)(config)
     }, cb);
   });
 };
+
+var _bluebird = require('bluebird');
+
+var _evenBetter = require('even-better');
+
+var _evenBetter2 = _interopRequireDefault(_evenBetter);
+
+var _configuration = require('./configuration');
+
+var _configuration2 = _interopRequireDefault(_configuration);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+module.exports = exports['default'];

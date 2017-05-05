@@ -1,6 +1,10 @@
 'use strict';
 
-var _ = require('lodash');
+var _lodash = require('lodash');
+
+var _lodash2 = _interopRequireDefault(_lodash);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function Samples(max) {
   this.vals = {};
@@ -9,10 +13,10 @@ function Samples(max) {
 }
 
 Samples.prototype.add = function (sample) {
-  var vals = this.vals;
-  var length = this.length = Math.min(this.length + 1, this.max);
+  const vals = this.vals;
+  const length = this.length = Math.min(this.length + 1, this.max);
 
-  _.forOwn(sample, function (val, name) {
+  _lodash2.default.forOwn(sample, function (val, name) {
     if (val == null) val = null;
 
     if (!vals[name]) vals[name] = new Array(length);

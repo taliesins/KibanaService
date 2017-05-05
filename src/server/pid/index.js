@@ -1,28 +1,40 @@
 'use strict';
 
-var _ = require('lodash');
-var Boom = require('boom');
-var Promise = require('bluebird');
-var writeFile = Promise.promisify(require('fs').writeFile);
-var unlink = require('fs').unlinkSync;
+var _lodash = require('lodash');
 
-module.exports = Promise.method(function (kbnServer, server, config) {
-  var path = config.get('pid.file');
+var _lodash2 = _interopRequireDefault(_lodash);
+
+var _boom = require('boom');
+
+var _boom2 = _interopRequireDefault(_boom);
+
+var _bluebird = require('bluebird');
+
+var _bluebird2 = _interopRequireDefault(_bluebird);
+
+var _fs = require('fs');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const writeFile = _bluebird2.default.promisify(require('fs').writeFile);
+
+module.exports = _bluebird2.default.method(function (kbnServer, server, config) {
+  const path = config.get('pid.file');
   if (!path) return;
 
-  var pid = String(process.pid);
+  const pid = String(process.pid);
 
-  return writeFile(path, pid, { flag: 'wx' })['catch'](function (err) {
+  return writeFile(path, pid, { flag: 'wx' }).catch(function (err) {
     if (err.code !== 'EEXIST') throw err;
 
-    var log = {
+    const log = {
       tmpl: 'pid file already exists at <%= path %>',
       path: path,
       pid: pid
     };
 
     if (config.get('pid.exclusive')) {
-      throw Boom.create(500, _.template(log.tmpl)(log), log);
+      throw _boom2.default.create(500, _lodash2.default.template(log.tmpl)(log), log);
     } else {
       server.log(['pid', 'warning'], log);
     }
@@ -36,8 +48,8 @@ module.exports = Promise.method(function (kbnServer, server, config) {
       pid: pid
     });
 
-    var clean = _.once(function (code) {
-      unlink(path);
+    const clean = _lodash2.default.once(function () {
+      (0, _fs.unlinkSync)(path);
     });
 
     process.once('exit', clean); // for "natural" exits
@@ -47,6 +59,10 @@ module.exports = Promise.method(function (kbnServer, server, config) {
 
       // resend SIGINT
       process.kill(process.pid, 'SIGINT');
+    });
+
+    process.on('unhandledRejection', function (reason) {
+      server.log(['warning'], `Detected an unhandled Promise rejection.\n${reason}`);
     });
   });
 });

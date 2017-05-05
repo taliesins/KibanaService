@@ -1,36 +1,32 @@
 'use strict';
 
-var _slicedToArray = require('babel-runtime/helpers/sliced-to-array')['default'];
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 
-var _getIterator = require('babel-runtime/core-js/get-iterator')['default'];
-
-module.exports = function (kbnServer, server, config) {
+exports.default = function (kbnServer, server, config) {
 
   server.decorate('server', 'config', function () {
     return kbnServer.config;
   });
 
-  var tmpl = 'Settings for "<%= key %>" were not applied, check for spelling errors and ensure the plugin is loaded.';
   var _iteratorNormalCompletion = true;
   var _didIteratorError = false;
   var _iteratorError = undefined;
 
   try {
-    for (var _iterator = _getIterator(config.getPendingSets()), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-      var _step$value = _slicedToArray(_step.value, 2);
+    for (var _iterator = getUnusedSettings(kbnServer.settings, config.get())[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+      const key = _step.value;
 
-      var key = _step$value[0];
-      var val = _step$value[1];
-
-      server.log(['warning', 'config'], { key: key, val: val, tmpl: tmpl });
+      server.log(['warning', 'config'], `Settings for "${key}" were not applied, check for spelling errors and ensure the plugin is loaded.`);
     }
   } catch (err) {
     _didIteratorError = true;
     _iteratorError = err;
   } finally {
     try {
-      if (!_iteratorNormalCompletion && _iterator['return']) {
-        _iterator['return']();
+      if (!_iteratorNormalCompletion && _iterator.return) {
+        _iterator.return();
       }
     } finally {
       if (_didIteratorError) {
@@ -39,3 +35,13 @@ module.exports = function (kbnServer, server, config) {
     }
   }
 };
+
+var _lodash = require('lodash');
+
+var _transform_deprecations = require('./transform_deprecations');
+
+const getUnusedSettings = (settings, configValues) => {
+  return (0, _lodash.difference)((0, _lodash.keys)((0, _transform_deprecations.transformDeprecations)(settings)), (0, _lodash.keys)(configValues));
+};
+
+module.exports = exports['default'];

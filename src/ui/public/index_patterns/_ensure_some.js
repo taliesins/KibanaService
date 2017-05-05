@@ -1,17 +1,12 @@
-define(function (require) {
-  return function EnsureSomeIndexPatternsFn(Private, Notifier, $location, kbnUrl) {
-    var errors = require('ui/errors');
-    var notify = new Notifier();
+export default function EnsureSomeIndexPatternsFn(Private, Notifier, $location, kbnUrl) {
+  return function ensureSomeIndexPatterns() {
+    return function promiseHandler(patterns) {
+      if (!patterns || patterns.length === 0) {
+        // notify.warning(new errors.NoDefinedIndexPatterns());
+        kbnUrl.redirectPath('/management/kibana/index');
+      }
 
-    return function ensureSomeIndexPatterns() {
-      return function promiseHandler(patterns) {
-        if (!patterns || patterns.length === 0) {
-          // notify.warning(new errors.NoDefinedIndexPatterns());
-          kbnUrl.redirectPath('/settings/indices');
-        }
-
-        return patterns;
-      };
+      return patterns;
     };
   };
-});
+}

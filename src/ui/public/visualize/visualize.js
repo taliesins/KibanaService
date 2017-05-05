@@ -1,125 +1,171 @@
-define(function (require) {
-  require('ui/modules')
-  .get('kibana/directive')
-  .directive('visualize', function (Notifier, SavedVis, indexPatterns, Private, config) {
+import 'ui/visualize/spy';
+import 'ui/visualize/visualize.less';
+import 'ui/visualize/visualize_legend';
+import _ from 'lodash';
+import uiModules from 'ui/modules';
+import visualizeTemplate from 'ui/visualize/visualize.html';
+import 'angular-sanitize';
 
-    require('ui/visualize/spy');
-    require('ui/visualize/visualize.less');
-    var $ = require('jquery');
-    var _ = require('lodash');
-    var visTypes = Private(require('ui/registry/vis_types'));
+import {
+  isTermSizeZeroError,
+} from '../elasticsearch_errors';
 
-    var notify = new Notifier({
-      location: 'Visualize'
-    });
+uiModules
+.get('kibana/directive', ['ngSanitize'])
+.directive('visualize', function (Notifier, SavedVis, indexPatterns, Private, config, $timeout) {
+  const notify = new Notifier({
+    location: 'Visualize'
+  });
 
-    return {
-      restrict: 'E',
-      scope : {
-        showSpyPanel: '=?',
-        vis: '=',
-        uiState: '=?',
-        searchSource: '=?',
-        editableVis: '=?',
-        esResp: '=?',
-      },
-      template: require('ui/visualize/visualize.html'),
-      link: function ($scope, $el, attr) {
-        var chart; // set in "vis" watcher
-        var minVisChartHeight = 180;
+  return {
+    restrict: 'E',
+    require: '?renderCounter',
+    scope : {
+      showSpyPanel: '=?',
+      vis: '=',
+      uiState: '=?',
+      searchSource: '=?',
+      editableVis: '=?',
+      esResp: '=?',
+    },
+    template: visualizeTemplate,
+    link: function ($scope, $el, attr, renderCounter) {
+      const minVisChartHeight = 180;
 
-        if (_.isUndefined($scope.showSpyPanel)) {
-          $scope.showSpyPanel = true;
-        }
+      if (_.isUndefined($scope.showSpyPanel)) {
+        $scope.showSpyPanel = true;
+      }
 
-        function getter(selector) {
+      function getter(selector) {
+        return function () {
+          const $sel = $el.find(selector);
+          if ($sel.size()) return $sel;
+        };
+      }
+
+      const getVisEl = getter('.visualize-chart');
+      const getVisContainer = getter('.vis-container');
+      const getSpyContainer = getter('.visualize-spy-container');
+
+      // Show no results message when isZeroHits is true and it requires search
+      $scope.showNoResultsMessage = function () {
+        const requiresSearch = _.get($scope, 'vis.type.requiresSearch');
+        const isZeroHits = _.get($scope,'esResp.hits.total') === 0;
+        const shouldShowMessage = !_.get($scope, 'vis.params.handleNoResults');
+
+        return Boolean(requiresSearch && isZeroHits && shouldShowMessage);
+      };
+
+      const legendPositionToVisContainerClassMap = {
+        top: 'vis-container--legend-top',
+        bottom: 'vis-container--legend-bottom',
+        left: 'vis-container--legend-left',
+        right: 'vis-container--legend-right',
+      };
+
+      $scope.getVisContainerClasses = function () {
+        return legendPositionToVisContainerClassMap[$scope.vis.params.legendPosition];
+      };
+
+      if (renderCounter && !$scope.vis.implementsRenderComplete()) {
+        renderCounter.disable();
+      }
+
+      $scope.spy = {};
+      $scope.spy.mode = ($scope.uiState) ? $scope.uiState.get('spy.mode', {}) : {};
+
+      const applyClassNames = function () {
+        const $visEl = getVisContainer();
+        const $spyEl = getSpyContainer();
+        if (!$spyEl) return;
+
+        const fullSpy = ($scope.spy.mode && ($scope.spy.mode.fill || $scope.fullScreenSpy));
+
+        $visEl.toggleClass('spy-only', Boolean(fullSpy));
+        $spyEl.toggleClass('only', Boolean(fullSpy));
+
+        $timeout(function () {
+          if (shouldHaveFullSpy()) {
+            $visEl.addClass('spy-only');
+            $spyEl.addClass('only');
+          }
+        }, 0);
+      };
+
+      // we need to wait for some watchers to fire at least once
+      // before we are "ready", this manages that
+      const prereq = (function () {
+        const fns = [];
+
+        return function register(fn) {
+          fns.push(fn);
+
           return function () {
-            var $sel = $el.find(selector);
-            if ($sel.size()) return $sel;
+            fn.apply(this, arguments);
+
+            if (fns.length) {
+              _.pull(fns, fn);
+              if (!fns.length) {
+                $scope.$root.$broadcast('ready:vis');
+              }
+            }
           };
+        };
+      }());
+
+      const loadingDelay = config.get('visualization:loadingDelay');
+      $scope.loadingStyle = {
+        '-webkit-transition-delay': loadingDelay,
+        'transition-delay': loadingDelay
+      };
+
+      function shouldHaveFullSpy() {
+        const $visEl = getVisEl();
+        if (!$visEl) return;
+
+        return ($visEl.height() < minVisChartHeight)
+          && _.get($scope.spy, 'mode.fill')
+          && _.get($scope.spy, 'mode.name');
+      }
+
+      // spy watchers
+      $scope.$watch('fullScreenSpy', applyClassNames);
+
+      $scope.$watchCollection('spy.mode', function () {
+        $scope.fullScreenSpy = shouldHaveFullSpy();
+        applyClassNames();
+      });
+
+      function updateVisAggs() {
+        const enabledState = $scope.editableVis.getEnabledState();
+        const shouldUpdate = enabledState.aggs.length !== $scope.vis.aggs.length;
+
+        if (shouldUpdate) {
+          $scope.vis.setState(enabledState);
+          $scope.editableVis.dirty = false;
+        }
+      }
+
+      $scope.$watch('vis', prereq(function (vis, oldVis) {
+        const $visEl = getVisEl();
+        if (!$visEl) return;
+
+        if (!attr.editableVis) {
+          $scope.editableVis = vis;
         }
 
-        var getVisEl = getter('.visualize-chart');
-        var getSpyEl = getter('visualize-spy');
+        if (oldVis) $scope.renderbot = null;
+        if (vis) {
+          $scope.renderbot = vis.type.createRenderbot(vis, $visEl, $scope.uiState);
+        }
+      }));
 
-        $scope.fullScreenSpy = false;
-        $scope.spy = {};
-        $scope.spy.mode = ($scope.uiState) ? $scope.uiState.get('spy.mode', {}) : {};
+      $scope.$watchCollection('vis.params', prereq(function () {
+        updateVisAggs();
+        if ($scope.renderbot) $scope.renderbot.updateParams();
+      }));
 
-        var applyClassNames = function () {
-          var $spyEl = getSpyEl();
-          var $visEl = getVisEl();
-          var fullSpy = ($scope.spy.mode && ($scope.spy.mode.fill || $scope.fullScreenSpy));
-
-          // external
-          $el.toggleClass('only-visualization', !$scope.spy.mode);
-          $el.toggleClass('visualization-and-spy', $scope.spy.mode && !fullSpy);
-          $el.toggleClass('only-spy', Boolean(fullSpy));
-          if ($spyEl) $spyEl.toggleClass('only', Boolean(fullSpy));
-
-          // internal
-          $visEl.toggleClass('spy-visible', Boolean($scope.spy.mode));
-          $visEl.toggleClass('spy-only', Boolean(fullSpy));
-        };
-
-        // we need to wait for some watchers to fire at least once
-        // before we are "ready", this manages that
-        var prereq = (function () {
-          var fns = [];
-
-          return function register(fn) {
-            fns.push(fn);
-
-            return function () {
-              fn.apply(this, arguments);
-
-              if (fns.length) {
-                _.pull(fns, fn);
-                if (!fns.length) {
-                  $scope.$root.$broadcast('ready:vis');
-                }
-              }
-            };
-          };
-        }());
-
-        var loadingDelay = config.get('visualization:loadingDelay');
-        $scope.loadingStyle = {
-          '-webkit-transition-delay': loadingDelay,
-          'transition-delay': loadingDelay
-        };
-
-        // spy watchers
-        $scope.$watch('fullScreenSpy', applyClassNames);
-
-        $scope.$watchCollection('spy.mode', function (spyMode, oldSpyMode) {
-          var $visEl = getVisEl();
-          if (!$visEl) return;
-
-          // if the spy has been opened, check chart height
-          if (spyMode && !oldSpyMode) {
-            $scope.fullScreenSpy = $visEl.height() < minVisChartHeight;
-          }
-
-          applyClassNames();
-        });
-
-        $scope.$watch('vis', prereq(function (vis, oldVis) {
-          var $visEl = getVisEl();
-          if (!$visEl) return;
-
-          if (!attr.editableVis) {
-            $scope.editableVis = vis;
-          }
-
-          if (oldVis) $scope.renderbot = null;
-          if (vis) $scope.renderbot = vis.type.createRenderbot(vis, $visEl);
-        }));
-
-        $scope.$watchCollection('vis.params', prereq(function () {
-          if ($scope.renderbot) $scope.renderbot.updateParams();
-        }));
-
+      if (_.get($scope, 'vis.type.requiresSearch')) {
         $scope.$watch('searchSource', prereq(function (searchSource) {
           if (!searchSource || attr.esResp) return;
 
@@ -132,26 +178,38 @@ define(function (require) {
             return searchSource.onResults().then(onResults);
           }).catch(notify.fatal);
 
-          searchSource.onError(notify.error).catch(notify.fatal);
+          searchSource.onError(e => {
+            $el.trigger('renderComplete');
+            if (isTermSizeZeroError(e)) {
+              return notify.error(
+                `Your visualization ('${$scope.vis.title}') has an error: it has a term ` +
+                `aggregation with a size of 0. Please set it to a number greater than 0 to resolve ` +
+                `the error.`
+              );
+            }
+
+            notify.error(e);
+          }).catch(notify.fatal);
         }));
-
-        $scope.$watch('esResp', prereq(function (resp, prevResp) {
-          if (!resp) return;
-          $scope.renderbot.render(resp);
-        }));
-
-        $scope.$watch('renderbot', function (newRenderbot, oldRenderbot) {
-          if (oldRenderbot && newRenderbot !== oldRenderbot) {
-            oldRenderbot.destroy();
-          }
-        });
-
-        $scope.$on('$destroy', function () {
-          if ($scope.renderbot) {
-            $scope.renderbot.destroy();
-          }
-        });
       }
-    };
-  });
+
+      $scope.$watch('esResp', prereq(function (resp) {
+        if (!resp) return;
+        $scope.renderbot.render(resp);
+      }));
+
+      $scope.$watch('renderbot', function (newRenderbot, oldRenderbot) {
+        if (oldRenderbot && newRenderbot !== oldRenderbot) {
+          oldRenderbot.destroy();
+        }
+      });
+
+      $scope.$on('$destroy', function () {
+        if ($scope.renderbot) {
+          $el.off('renderComplete');
+          $scope.renderbot.destroy();
+        }
+      });
+    }
+  };
 });

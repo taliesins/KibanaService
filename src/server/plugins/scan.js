@@ -1,198 +1,116 @@
 'use strict';
 
-var _regeneratorRuntime = require('babel-runtime/regenerator')['default'];
+var _lodash = require('lodash');
 
-var _getIterator = require('babel-runtime/core-js/get-iterator')['default'];
+var _lodash2 = _interopRequireDefault(_lodash);
 
-var _this3 = this;
+var _bluebird = require('bluebird');
 
-module.exports = function callee$0$0(kbnServer, server, config) {
-  var _, _require, fromNode, _require2, readdir, stat, _require3, resolve, _require4, each, PluginCollection, plugins, scanDirs, pluginPaths, debug, warning, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, path, modulePath;
+var _fs = require('fs');
 
-  return _regeneratorRuntime.async(function callee$0$0$(context$1$0) {
-    var _this2 = this;
+var _path = require('path');
 
-    while (1) switch (context$1$0.prev = context$1$0.next) {
-      case 0:
-        _ = require('lodash');
-        _require = require('bluebird');
-        fromNode = _require.fromNode;
-        _require2 = require('fs');
-        readdir = _require2.readdir;
-        stat = _require2.stat;
-        _require3 = require('path');
-        resolve = _require3.resolve;
-        _require4 = require('bluebird');
-        each = _require4.each;
-        PluginCollection = require('./PluginCollection');
-        plugins = kbnServer.plugins = new PluginCollection(kbnServer);
-        scanDirs = [].concat(config.get('plugins.scanDirs') || []);
-        pluginPaths = [].concat(config.get('plugins.paths') || []);
-        debug = _.bindKey(server, 'log', ['plugins', 'debug']);
-        warning = _.bindKey(server, 'log', ['plugins', 'warning']);
-        context$1$0.next = 18;
-        return _regeneratorRuntime.awrap(each(scanDirs, function callee$1$0(dir) {
-          var filenames;
-          return _regeneratorRuntime.async(function callee$1$0$(context$2$0) {
-            var _this = this;
+var _plugin_collection = require('./plugin_collection');
 
-            while (1) switch (context$2$0.prev = context$2$0.next) {
-              case 0:
-                debug({ tmpl: 'Scanning `<%= dir %>` for plugins', dir: dir });
+var _plugin_collection2 = _interopRequireDefault(_plugin_collection);
 
-                filenames = null;
-                context$2$0.prev = 2;
-                context$2$0.next = 5;
-                return _regeneratorRuntime.awrap(fromNode(function (cb) {
-                  return readdir(dir, cb);
-                }));
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-              case 5:
-                filenames = context$2$0.sent;
-                context$2$0.next = 14;
-                break;
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
-              case 8:
-                context$2$0.prev = 8;
-                context$2$0.t0 = context$2$0['catch'](2);
+module.exports = (() => {
+  var _ref = _asyncToGenerator(function* (kbnServer, server, config) {
 
-                if (!(context$2$0.t0.code !== 'ENOENT')) {
-                  context$2$0.next = 12;
-                  break;
-                }
+    const plugins = kbnServer.plugins = new _plugin_collection2.default(kbnServer);
 
-                throw context$2$0.t0;
+    const scanDirs = [].concat(config.get('plugins.scanDirs') || []);
+    const pluginPaths = [].concat(config.get('plugins.paths') || []);
 
-              case 12:
+    const debug = _lodash2.default.bindKey(server, 'log', ['plugins', 'debug']);
+    const warning = _lodash2.default.bindKey(server, 'log', ['plugins', 'warning']);
 
-                filenames = [];
-                warning({
-                  tmpl: '<%= err.code %>: Unable to scan non-existent directory for plugins "<%= dir %>"',
-                  err: context$2$0.t0,
-                  dir: dir
-                });
+    // scan all scanDirs to find pluginPaths
+    yield (0, _bluebird.each)(scanDirs, (() => {
+      var _ref2 = _asyncToGenerator(function* (dir) {
+        debug({ tmpl: 'Scanning `<%= dir %>` for plugins', dir: dir });
 
-              case 14:
-                context$2$0.next = 16;
-                return _regeneratorRuntime.awrap(each(filenames, function callee$2$0(name) {
-                  var path, stats;
-                  return _regeneratorRuntime.async(function callee$2$0$(context$3$0) {
-                    while (1) switch (context$3$0.prev = context$3$0.next) {
-                      case 0:
-                        if (!(name[0] === '.')) {
-                          context$3$0.next = 2;
-                          break;
-                        }
+        let filenames = null;
 
-                        return context$3$0.abrupt('return');
+        try {
+          filenames = yield (0, _bluebird.fromNode)(function (cb) {
+            return (0, _fs.readdir)(dir, cb);
+          });
+        } catch (err) {
+          if (err.code !== 'ENOENT') throw err;
 
-                      case 2:
-                        path = resolve(dir, name);
-                        context$3$0.next = 5;
-                        return _regeneratorRuntime.awrap(fromNode(function (cb) {
-                          return stat(path, cb);
-                        }));
+          filenames = [];
+          warning({
+            tmpl: '<%= err.code %>: Unable to scan non-existent directory for plugins "<%= dir %>"',
+            err: err,
+            dir: dir
+          });
+        }
 
-                      case 5:
-                        stats = context$3$0.sent;
+        yield (0, _bluebird.each)(filenames, (() => {
+          var _ref3 = _asyncToGenerator(function* (name) {
+            if (name[0] === '.') return;
 
-                        if (stats.isDirectory()) {
-                          pluginPaths.push(path);
-                        }
-
-                      case 7:
-                      case 'end':
-                        return context$3$0.stop();
-                    }
-                  }, null, _this);
-                }));
-
-              case 16:
-              case 'end':
-                return context$2$0.stop();
+            const path = (0, _path.resolve)(dir, name);
+            const stats = yield (0, _bluebird.fromNode)(function (cb) {
+              return (0, _fs.stat)(path, cb);
+            });
+            if (stats.isDirectory()) {
+              pluginPaths.push(path);
             }
-          }, null, _this2, [[2, 8]]);
-        }));
+          });
 
-      case 18:
-        _iteratorNormalCompletion = true;
-        _didIteratorError = false;
-        _iteratorError = undefined;
-        context$1$0.prev = 21;
-        _iterator = _getIterator(pluginPaths);
+          return function (_x5) {
+            return _ref3.apply(this, arguments);
+          };
+        })());
+      });
 
-      case 23:
-        if (_iteratorNormalCompletion = (_step = _iterator.next()).done) {
-          context$1$0.next = 40;
-          break;
+      return function (_x4) {
+        return _ref2.apply(this, arguments);
+      };
+    })());
+
+    var _iteratorNormalCompletion = true;
+    var _didIteratorError = false;
+    var _iteratorError = undefined;
+
+    try {
+      for (var _iterator = pluginPaths[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+        const path = _step.value;
+
+        let modulePath;
+        try {
+          modulePath = require.resolve(path);
+        } catch (e) {
+          warning({ tmpl: 'Skipping non-plugin directory at <%= path %>', path: path });
+          continue;
         }
 
-        path = _step.value;
-        modulePath = undefined;
-        context$1$0.prev = 26;
-
-        modulePath = require.resolve(path);
-        context$1$0.next = 34;
-        break;
-
-      case 30:
-        context$1$0.prev = 30;
-        context$1$0.t0 = context$1$0['catch'](26);
-
-        warning({ tmpl: 'Skipping non-plugin directory at <%= path %>', path: path });
-        return context$1$0.abrupt('continue', 37);
-
-      case 34:
-        context$1$0.next = 36;
-        return _regeneratorRuntime.awrap(plugins['new'](path));
-
-      case 36:
+        yield plugins.new(path);
         debug({ tmpl: 'Found plugin at <%= path %>', path: modulePath });
-
-      case 37:
-        _iteratorNormalCompletion = true;
-        context$1$0.next = 23;
-        break;
-
-      case 40:
-        context$1$0.next = 46;
-        break;
-
-      case 42:
-        context$1$0.prev = 42;
-        context$1$0.t1 = context$1$0['catch'](21);
-        _didIteratorError = true;
-        _iteratorError = context$1$0.t1;
-
-      case 46:
-        context$1$0.prev = 46;
-        context$1$0.prev = 47;
-
-        if (!_iteratorNormalCompletion && _iterator['return']) {
-          _iterator['return']();
+      }
+    } catch (err) {
+      _didIteratorError = true;
+      _iteratorError = err;
+    } finally {
+      try {
+        if (!_iteratorNormalCompletion && _iterator.return) {
+          _iterator.return();
         }
-
-      case 49:
-        context$1$0.prev = 49;
-
-        if (!_didIteratorError) {
-          context$1$0.next = 52;
-          break;
+      } finally {
+        if (_didIteratorError) {
+          throw _iteratorError;
         }
-
-        throw _iteratorError;
-
-      case 52:
-        return context$1$0.finish(49);
-
-      case 53:
-        return context$1$0.finish(46);
-
-      case 54:
-      case 'end':
-        return context$1$0.stop();
+      }
     }
-  }, null, _this3, [[21, 42, 46, 54], [26, 30], [47,, 49, 53]]);
-};
+  });
 
-// scan all scanDirs to find pluginPaths
+  return function (_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+})();

@@ -1,20 +1,23 @@
 'use strict';
 
-var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default'];
+var _lodash = require('lodash');
 
-var _ = require('lodash');
-var ansicolors = require('ansicolors');
+var _lodash2 = _interopRequireDefault(_lodash);
 
-var log = _.restParam(function (color, label, rest1) {
-  console.log.apply(console, [color(' ' + _.trim(label) + ' ')].concat(rest1));
+var _color = require('./color');
+
+var _color2 = _interopRequireDefault(_color);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const log = _lodash2.default.restParam(function (color, label, rest1) {
+  console.log.apply(console, [color(` ${_lodash2.default.trim(label)} `)].concat(rest1));
 });
 
-var color = require('./color');
-
-module.exports = function Log(quiet, silent) {
-  _classCallCheck(this, Log);
-
-  this.good = quiet || silent ? _.noop : _.partial(log, color.green);
-  this.warn = quiet || silent ? _.noop : _.partial(log, color.yellow);
-  this.bad = silent ? _.noop : _.partial(log, color.red);
+module.exports = class Log {
+  constructor(quiet, silent) {
+    this.good = quiet || silent ? _lodash2.default.noop : _lodash2.default.partial(log, _color2.default.green);
+    this.warn = quiet || silent ? _lodash2.default.noop : _lodash2.default.partial(log, _color2.default.yellow);
+    this.bad = silent ? _lodash2.default.noop : _lodash2.default.partial(log, _color2.default.red);
+  }
 };

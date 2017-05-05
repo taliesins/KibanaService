@@ -1,27 +1,41 @@
 'use strict';
 
-var _ = require('lodash');
-var Command = require('commander').Command;
+var _lodash = require('lodash');
 
-var red = require('./color').red;
-var yellow = require('./color').yellow;
-var help = require('./help');
+var _lodash2 = _interopRequireDefault(_lodash);
 
-Command.prototype.error = function (err) {
+var _help = require('./help');
+
+var _help2 = _interopRequireDefault(_help);
+
+var _commander = require('commander');
+
+var _color = require('./color');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+_commander.Command.prototype.error = function (err) {
   if (err && err.message) err = err.message;
 
-  console.log('\n' + red(' ERROR ') + ' ' + err + '\n\n' + help(this, '  ') + '\n');
+  console.log(`
+${(0, _color.red)(' ERROR ')} ${err}
+
+${(0, _help2.default)(this, '  ')}
+`);
 
   process.exit(64); // eslint-disable-line no-process-exit
 };
 
-Command.prototype.defaultHelp = function () {
-  console.log('\n' + help(this, '  ') + '\n\n');
+_commander.Command.prototype.defaultHelp = function () {
+  console.log(`
+${(0, _help2.default)(this, '  ')}
+
+`);
 
   process.exit(64); // eslint-disable-line no-process-exit
 };
 
-Command.prototype.unknownArgv = function (argv) {
+_commander.Command.prototype.unknownArgv = function (argv) {
   if (argv) this.__unknownArgv = argv;
   return this.__unknownArgv ? this.__unknownArgv.slice(0) : [];
 };
@@ -30,36 +44,36 @@ Command.prototype.unknownArgv = function (argv) {
  * setup the command to accept arbitrary configuration via the cli
  * @return {[type]} [description]
  */
-Command.prototype.collectUnknownOptions = function () {
-  var title = 'Extra ' + this._name + ' options';
+_commander.Command.prototype.collectUnknownOptions = function () {
+  const title = `Extra ${this._name} options`;
 
   this.allowUnknownOption();
   this.getUnknownOptions = function () {
-    var opts = {};
-    var unknowns = this.unknownArgv();
+    const opts = {};
+    const unknowns = this.unknownArgv();
 
     while (unknowns.length) {
-      var opt = unknowns.shift().split('=');
+      const opt = unknowns.shift().split('=');
       if (opt[0].slice(0, 2) !== '--') {
-        this.error(title + ' "' + opt[0] + '" must start with "--"');
+        this.error(`${title} "${opt[0]}" must start with "--"`);
       }
 
       if (opt.length === 1) {
         if (!unknowns.length || unknowns[0][0] === '-') {
-          this.error(title + ' "' + opt[0] + '" must have a value');
+          this.error(`${title} "${opt[0]}" must have a value`);
         }
 
         opt.push(unknowns.shift());
       }
 
-      var val = opt[1];
+      let val = opt[1];
       try {
         val = JSON.parse(opt[1]);
       } catch (e) {
         val = opt[1];
       }
 
-      _.set(opts, opt[0].slice(2), val);
+      _lodash2.default.set(opts, opt[0].slice(2), val);
     }
 
     return opts;
@@ -68,19 +82,15 @@ Command.prototype.collectUnknownOptions = function () {
   return this;
 };
 
-Command.prototype.parseOptions = _.wrap(Command.prototype.parseOptions, function (parse, argv) {
-  var opts = parse.call(this, argv);
+_commander.Command.prototype.parseOptions = _lodash2.default.wrap(_commander.Command.prototype.parseOptions, function (parse, argv) {
+  const opts = parse.call(this, argv);
   this.unknownArgv(opts.unknown);
   return opts;
 });
 
-Command.prototype.action = _.wrap(Command.prototype.action, function (action, fn) {
-  return action.call(this, function () {
-    for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
-      args[_key] = arguments[_key];
-    }
-
-    var ret = fn.apply(this, args);
+_commander.Command.prototype.action = _lodash2.default.wrap(_commander.Command.prototype.action, function (action, fn) {
+  return action.call(this, function (...args) {
+    const ret = fn.apply(this, args);
     if (ret && typeof ret.then === 'function') {
       ret.then(null, function (e) {
         console.log('FATAL CLI ERROR', e.stack);
@@ -90,4 +100,4 @@ Command.prototype.action = _.wrap(Command.prototype.action, function (action, fn
   });
 });
 
-module.exports = Command;
+module.exports = _commander.Command;

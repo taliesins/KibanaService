@@ -1,6 +1,10 @@
 'use strict';
 
-var _ = require('lodash');
+var _lodash = require('lodash');
+
+var _lodash2 = _interopRequireDefault(_lodash);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.all = [{
   id: 'red',
@@ -31,10 +35,10 @@ exports.all = [{
   title: 'Disabled',
   severity: -1,
   icon: 'toggle-off',
-  nicknames: ['I\'m I even a thing?']
+  nicknames: ['Am I even a thing?']
 }];
 
-exports.allById = _.indexBy(exports.all, 'id');
+exports.allById = _lodash2.default.indexBy(exports.all, 'id');
 
 exports.defaults = {
   icon: 'question',
@@ -42,5 +46,5 @@ exports.defaults = {
 };
 
 exports.get = function (id) {
-  return exports.allById[id] || _.defaults({ id: id }, exports.defaults);
+  return exports.allById[id] || _lodash2.default.defaults({ id: id }, exports.defaults);
 };

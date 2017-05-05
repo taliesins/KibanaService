@@ -1,38 +1,33 @@
 'use strict';
 
-var _get = require('babel-runtime/helpers/get')['default'];
+var _states = require('./states');
 
-var _inherits = require('babel-runtime/helpers/inherits')['default'];
+var _states2 = _interopRequireDefault(_states);
 
-var _createClass = require('babel-runtime/helpers/create-class')['default'];
+var _events = require('events');
 
-var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default'];
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var _ = require('lodash');
-var EventEmitter = require('events').EventEmitter;
-var states = require('./states');
+class Status extends _events.EventEmitter {
+  constructor(id, server) {
+    super();
 
-var Status = (function (_EventEmitter) {
-  _inherits(Status, _EventEmitter);
+    if (!id || typeof id !== 'string') {
+      throw new TypeError('Status constructor requires an `id` string');
+    }
 
-  function Status(name, server) {
-    _classCallCheck(this, Status);
-
-    _get(Object.getPrototypeOf(Status.prototype), 'constructor', this).call(this);
-
-    this.name = name;
+    this.id = id;
     this.since = new Date();
     this.state = 'uninitialized';
     this.message = 'uninitialized';
 
     this.on('change', function (previous, previousMsg) {
       this.since = new Date();
-      var tags = ['status', name];
-      tags.push(this.state === 'red' ? 'error' : 'info');
+
+      const tags = ['status', this.id, this.state === 'red' ? 'error' : 'info'];
 
       server.log(tags, {
         tmpl: 'Status changed from <%= prevState %> to <%= state %><%= message ? " - " + message : "" %>',
-        name: name,
         state: this.state,
         message: this.message,
         prevState: previous,
@@ -41,28 +36,39 @@ var Status = (function (_EventEmitter) {
     });
   }
 
-  _createClass(Status, [{
-    key: 'toJSON',
-    value: function toJSON() {
-      return {
-        name: this.name,
-        state: this.state,
-        icon: states.get(this.state).icon,
-        message: this.message,
-        since: this.since
-      };
+  toJSON() {
+    return {
+      id: this.id,
+      state: this.state,
+      icon: _states2.default.get(this.state).icon,
+      message: this.message,
+      since: this.since
+    };
+  }
+
+  on(eventName, handler) {
+    super.on(eventName, handler);
+
+    if (eventName === this.state) {
+      setImmediate(() => handler(this.state, this.message));
     }
-  }]);
+  }
 
-  return Status;
-})(EventEmitter);
+  once(eventName, handler) {
+    if (eventName === this.state) {
+      setImmediate(() => handler(this.state, this.message));
+    } else {
+      super.once(eventName, handler);
+    }
+  }
+}
 
-states.all.forEach(function (state) {
+_states2.default.all.forEach(function (state) {
   Status.prototype[state.id] = function (message) {
     if (this.state === 'disabled') return;
 
-    var previous = this.state;
-    var previousMsg = this.message;
+    const previous = this.state;
+    const previousMsg = this.message;
 
     this.error = null;
     this.message = message || state.title;
@@ -78,8 +84,8 @@ states.all.forEach(function (state) {
       return;
     }
 
-    this.emit(state.id, previous, previousMsg);
-    this.emit('change', previous, previousMsg);
+    this.emit(state.id, previous, previousMsg, this.state, this.message);
+    this.emit('change', previous, previousMsg, this.state, this.message);
   };
 });
 

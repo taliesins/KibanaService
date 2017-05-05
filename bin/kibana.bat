@@ -14,7 +14,7 @@ IF %ERRORLEVEL% EQU 0 (
 
 If Not Exist "%NODE%" (
   IF Exist "%SYS_NODE%" (
-    set NODE=%SYS_NODE%
+    set "NODE=%SYS_NODE%"
   ) else (
     Echo unable to find usable node.js executable.
     Exit /B 1
@@ -22,7 +22,7 @@ If Not Exist "%NODE%" (
 )
 
 TITLE Kibana Server
-"%NODE%" %NODE_OPTIONS% "%DIR%\src\cli" %*
+"%NODE%" %NODE_OPTIONS% --no-warnings "%DIR%\src\cli" %*
 
 :finally
 

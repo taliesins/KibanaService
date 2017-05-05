@@ -1,64 +1,44 @@
 'use strict';
 
-var _regeneratorRuntime = require('babel-runtime/regenerator')['default'];
+var _cluster = require('cluster');
 
-var _this = this;
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
-module.exports = function callee$0$0(kbnServer, server, config) {
-  var _require, isWorker;
+module.exports = (() => {
+  var _ref = _asyncToGenerator(function* (kbnServer) {
 
-  return _regeneratorRuntime.async(function callee$0$0$(context$1$0) {
-    while (1) switch (context$1$0.prev = context$1$0.next) {
-      case 0:
-        _require = require('cluster');
-        isWorker = _require.isWorker;
+    if (!_cluster.isWorker) {
+      throw new Error(`lazy optimization is only available in "watch" mode`);
+    }
 
-        if (isWorker) {
-          context$1$0.next = 4;
-          break;
-        }
-
-        throw new Error('lazy optimization is only available in "watch" mode');
-
-      case 4:
-        context$1$0.t0 = process.env.kbnWorkerType;
-        context$1$0.next = context$1$0.t0 === 'optmzr' ? 7 : context$1$0.t0 === 'server' ? 10 : 13;
+    /**
+     * When running in lazy mode two workers/threads run in one
+     * of the modes: 'optmzr' or 'server'
+     *
+     * optmzr: this thread runs the LiveOptimizer and the LazyServer
+     *   which serves the LiveOptimizer's output and blocks requests
+     *   while the optimizer is running
+     *
+     * server: this thread runs the entire kibana server and proxies
+     *   all requests for /bundles/* to the optmzr
+     *
+     * @param  {string} process.env.kbnWorkerType
+     */
+    switch (process.env.kbnWorkerType) {
+      case 'optmzr':
+        yield kbnServer.mixin(require('./optmzr_role'));
         break;
 
-      case 7:
-        context$1$0.next = 9;
-        return _regeneratorRuntime.awrap(kbnServer.mixin(require('./optmzrRole')));
+      case 'server':
+        yield kbnServer.mixin(require('./proxy_role'));
+        break;
 
-      case 9:
-        return context$1$0.abrupt('break', 14);
-
-      case 10:
-        context$1$0.next = 12;
-        return _regeneratorRuntime.awrap(kbnServer.mixin(require('./proxyRole')));
-
-      case 12:
-        return context$1$0.abrupt('break', 14);
-
-      case 13:
-        throw new Error('unknown kbnWorkerType "' + process.env.kbnWorkerType + '"');
-
-      case 14:
-      case 'end':
-        return context$1$0.stop();
+      default:
+        throw new Error(`unknown kbnWorkerType "${process.env.kbnWorkerType}"`);
     }
-  }, null, _this);
-};
+  });
 
-/**
- * When running in lazy mode two workers/threads run in one
- * of the modes: 'optmzr' or 'server'
- *
- * optmzr: this thread runs the LiveOptimizer and the LazyServer
- *   which serves the LiveOptimizer's output and blocks requests
- *   while the optimizer is running
- *
- * server: this thread runs the entire kibana server and proxies
- *   all requests for /bundles/* to the optmzr
- *
- * @param  {string} process.env.kbnWorkerType
- */
+  return function (_x) {
+    return _ref.apply(this, arguments);
+  };
+})();
