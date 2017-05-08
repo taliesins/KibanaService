@@ -22,6 +22,19 @@ Install-All `
 	-environmentConfigurationFilePath $environmentConfigurationFilePath `
 	-productConfigurationFilePath $productConfigurationFilePath
 
+$pluginsPath = Join-Path $rootPath "plugins"
+if (!(Test-Path $pluginsPath)){
+	mkdir $pluginsPath
+}
+	
+$kibanaPluginPath = Join-Path $rootPath 'bin\kibana-plugin.bat'
+$e.PlugIns.Split(",") | %{$_.Trim()} | %{ 
+	$pluginName = $_
+	if ($pluginName) {
+		&$kibanaPluginPath install $pluginName
+	}
+}
+	
 # Run post install configuration
 $updateConfigurationPostInstall = Join-Path $scriptPath "UpdateConfigurationPostInstall.ps1"
 if(Test-Path $updateConfigurationPostInstall) {

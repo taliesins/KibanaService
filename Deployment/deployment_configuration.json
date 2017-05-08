@@ -1,4 +1,5 @@
 {
     "ElasticSearchHost": "localhost",
-    "ElasticSearchProtocol": "http"
+    "ElasticSearchProtocol": "http",
+	"PlugIns": "x-pack,https://github.com/prelert/kibana-swimlane-vis/releases/download/v5.3.2/prelert_swimlane_vis-5.3.2.zip,https://github.com/clamarque/kibana_health_metric_vis/releases/download/v5.0/kibana_health_metric_vis-5.0.zip,https://github.com/elo7/cohort/releases/download/5.3.0/cohort-5.3.0.zip,https://github.com/outbrain/ob-kb-funnel/releases/download/v5.1.1/ob-kb-funnel.zip"
 }
